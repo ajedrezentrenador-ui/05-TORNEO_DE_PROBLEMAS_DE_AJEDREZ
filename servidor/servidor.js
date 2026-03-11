@@ -28,7 +28,7 @@ const CONFIG = {
     // 8:00 PM       | 01:00 (día siguiente)
     
     fechaUTC: '2026-03-11',               // Formato AAAA-MM-DD en UTC
-    horaUTC: '22:12',                      // Formato HH:MM en UTC (24h)
+    horaUTC: '22:15',                      // Formato HH:MM en UTC (24h)
     
     // ========================================
     // PARÁMETROS DEL TORNEO
