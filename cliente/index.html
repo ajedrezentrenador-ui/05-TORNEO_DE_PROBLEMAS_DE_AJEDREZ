@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>🏆 TORNEO DE PROBLEMAS - AJEDREZ</title>
+    <style>
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body { 
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            background: #1a2a3a;
+            padding: 8px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #ecf0f1;
+            border-radius: 20px;
+            padding: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: clamp(1.3rem, 5vw, 1.8rem);
+        }
+        
+        .modo-badge {
+            text-align: center;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            color: #f39c12;
+            background: #fff;
+            padding: 4px 12px;
+            border-radius: 30px;
+            display: inline-block;
+            width: auto;
+            margin-left: auto;
+            margin-right: auto;
+            border: 1px solid #f39c12;
+        }
+        
+        .conexion {
+            text-align: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #fff;
+            border-radius: 40px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .conectado { color: #27ae60; font-weight: bold; }
+        .desconectado { color: #e74c3c; font-weight: bold; }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 30px;
+            background: #3498db;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            min-width: 90px;
+            font-size: 14px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        button:hover { background: #2980b9; }
+        button:active { transform: scale(0.98); }
+        button:disabled { background: #bdc3c7; cursor: not-allowed; }
+        
+        .registro {
+            background: #fff;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 15px;
+            text-align: center;
+            display: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .registro input {
+            padding: 12px 20px;
+            width: 100%;
+            max-width: 280px;
+            margin: 8px 0;
+            border: 2px solid #3498db;
+            border-radius: 30px;
+            font-size: 15px;
+            outline: none;
+        }
+        
+        .juego-panel {
+            display: none;
+        }
+        
+        .torneo-panel {
+            display: none;
+        }
+        
+        .header-info {
+            display: flex;
+            justify-content: space-between;
+            background: #fff;
+            padding: 10px 12px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            font-weight: 500;
+            font-size: 13px;
+            align-items: center;
+        }
+        
+        .badge {
+            background: #3498db;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 30px;
+            font-weight: bold;
+            display: inline-block;
+            font-size: 12px;
+        }
+        
+        .badge-info {
+            background: #f39c12;
+        }
+        
+        .tiempo-box {
+            background: #fff;
+            padding: 4px 8px;
+            border-radius: 20px;
+            border: 2px solid #e67e22;
+            font-weight: bold;
+            min-width: 60px;
+            text-align: center;
+            font-size: 12px;
+        }
+        
+        .tiempo-problema {
+            color: #e67e22;
+            font-size: 1.1em;
+        }
+        
+        .tiempo-ronda {
+            color: #3498db;
+            font-size: 1.1em;
+        }
+        
+        .main-content {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        /* ============================================ */
+        /* TABLERO CON COORDENADAS FIJAS MEDIANTE GRID */
+        /* ============================================ */
+        .tablero-container {
+            flex: 2;
+            min-width: 280px;
+            background: #fff;
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        /* Grid principal para alineación perfecta */
+        .tablero-grid {
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            grid-template-columns: auto 1fr auto;
+            gap: 0px;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        /* Esquina superior izquierda (vacía) */
+        .grid-esquina-superior-izquierda {
+            grid-row: 1;
+            grid-column: 1;
+            width: 20px;
+            height: 20px;
+        }
+        
+        /* Letras superiores (a-h) */
+        .grid-letras-superiores {
+            grid-row: 1;
+            grid-column: 2;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            font-weight: bold;
+            color: #7f8c8d;
+            font-size: clamp(10px, 3vw, 12px);
+            padding: 0 2px;
+        }
+        
+        .grid-letra {
+            flex: 1;
+            text-align: center;
+            text-transform: lowercase;
+        }
+        
+        /* Esquina superior derecha (vacía) */
+        .grid-esquina-superior-derecha {
+            grid-row: 1;
+            grid-column: 3;
+            width: 20px;
+            height: 20px;
+        }
+        
+        /* Números izquierdos (1-8) - AHORA EN EL GRID */
+        .grid-numeros-izquierdos {
+            grid-row: 2;
+            grid-column: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            align-items: center;
+            font-weight: bold;
+            color: #7f8c8d;
+            font-size: clamp(9px, 2.5vw, 11px);
+            padding: 2px 0;
+            width: 20px;
+        }
+        
+        .grid-numero {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* El tablero */
+        #tablero {
+            grid-row: 2;
+            grid-column: 2;
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            border: 2px solid #34495e;
+            border-radius: 6px;
+            overflow: hidden;
+            aspect-ratio: 1;
+            width: 100%;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .casilla {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .casilla img {
+            width: 85%;
+            height: 85%;
+            object-fit: contain;
+            transition: transform 0.1s;
+            pointer-events: auto;
+            z-index: 2;
+        }
+        
+        .casilla:active img {
+            transform: scale(1.1);
+        }
+        
+        .casilla.blanca { background: #f5f5f5; }
+        .casilla.negra { background: #7f8c8d; }
+        
+        /* Números DENTRO de las casillas solo en columna 0 (respaldo) */
+        .casilla[data-columna="0"]::after {
+            content: attr(data-fila-num);
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            font-size: clamp(7px, 2vw, 9px);
+            font-weight: bold;
+            color: rgba(0, 0, 0, 0.4);
+            pointer-events: none;
+            z-index: 1;
+            display: none; /* Oculto porque ya usamos el grid */
+        }
+        
+        /* Esquina inferior izquierda (vacía) */
+        .grid-esquina-inferior-izquierda {
+            grid-row: 3;
+            grid-column: 1;
+            width: 20px;
+            height: 20px;
+        }
+        
+        /* Letras inferiores (a-h) */
+        .grid-letras-inferiores {
+            grid-row: 3;
+            grid-column: 2;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            font-weight: bold;
+            color: #7f8c8d;
+            font-size: clamp(10px, 3vw, 12px);
+            padding: 0 2px;
+        }
+        
+        /* Esquina inferior derecha (vacía) */
+        .grid-esquina-inferior-derecha {
+            grid-row: 3;
+            grid-column: 3;
+            width: 20px;
+            height: 20px;
+        }
+        
+        .turno-indicador {
+            background: #f39c12;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 30px;
+            font-weight: bold;
+            font-size: 0.85rem;
+            text-align: center;
+            margin-top: 15px;
+            display: inline-block;
+            width: auto;
+        }
+        
+        .panel-derecho {
+            flex: 1;
+            min-width: 240px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .info-torneo {
+            background: #fff;
+            padding: 12px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .info-torneo h4 {
+            color: #2c3e50;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #7f8c8d;
+        }
+        
+        .tiempos-panel {
+            display: flex;
+            gap: 8px;
+            margin: 8px 0;
+            flex-wrap: wrap;
+        }
+        
+        .tiempos-panel .tiempo-box {
+            flex: 1;
+            min-width: 70px;
+        }
+        
+        .clasificacion {
+            background: #fff;
+            padding: 12px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .clasificacion h3 {
+            margin-bottom: 10px;
+            color: #2c3e50;
+            font-size: 1rem;
+        }
+        
+        #listaClasificacion {
+            overflow-x: auto;
+            font-size: 0.85rem;
+        }
+        
+        .chat {
+            background: #fff;
+            padding: 12px;
+            border-radius: 12px;
+            height: 150px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .chat h4 {
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+            color: #7f8c8d;
+        }
+        
+        #mensajes {
+            flex: 1;
+            overflow-y: auto;
+            background: #f8f9fa;
+            padding: 6px;
+            border-radius: 10px;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+        
+        .mensaje {
+            padding: 4px 8px;
+            margin: 3px 0;
+            background: #e9ecef;
+            border-radius: 12px;
+            word-wrap: break-word;
+        }
+        
+        .mensaje.sistema {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .botones-panel {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .btn-torneo {
+            background: #f39c12;
+            flex: 1;
+            font-size: 13px;
+            padding: 8px 15px;
+        }
+        
+        .btn-torneo:hover {
+            background: #e67e22;
+        }
+        
+        .btn-cancelar {
+            background: #e74c3c;
+            display: none;
+            font-size: 13px;
+            padding: 8px 15px;
+        }
+        
+        .btn-cancelar:hover {
+            background: #c0392b;
+        }
+        
+        .espera, .countdown, .torneo-activo, .descanso {
+            background: #fff;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+            display: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .countdown {
+            background: #f39c12;
+            color: white;
+        }
+        
+        .countdown-numero {
+            font-size: clamp(2.5em, 10vw, 4em);
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .descanso {
+            background: #3498db;
+            color: white;
+        }
+        
+        .descanso-tiempo {
+            font-size: clamp(2em, 8vw, 3em);
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .info-jugador {
+            background: #f8f9fa;
+            padding: 8px;
+            border-radius: 8px;
+            margin: 8px 0;
+            font-size: 0.85rem;
+        }
+        
+        /* ============================================ */
+        /* RESPONSIVE */
+        /* ============================================ */
+        @media (max-width: 768px) {
+            .container { padding: 12px; }
+            h1 { font-size: 1.4rem; }
+            
+            .grid-numeros-izquierdos {
+                width: 18px;
+                font-size: 9px;
+            }
+            
+            .grid-letras-superiores,
+            .grid-letras-inferiores {
+                font-size: 10px;
+            }
+            
+            .grid-esquina-superior-izquierda,
+            .grid-esquina-superior-derecha,
+            .grid-esquina-inferior-izquierda,
+            .grid-esquina-inferior-derecha {
+                width: 18px;
+                height: 18px;
+            }
+            
+            .casilla img { width: 80%; height: 80%; }
+            
+            .header-info { font-size: 12px; }
+            .tiempo-box { min-width: 50px; font-size: 11px; }
+        }
+        
+        @media (max-width: 480px) {
+            .grid-numeros-izquierdos {
+                width: 16px;
+                font-size: 8px;
+            }
+            
+            .grid-letras-superiores,
+            .grid-letras-inferiores {
+                font-size: 9px;
+            }
+            
+            .grid-esquina-superior-izquierda,
+            .grid-esquina-superior-derecha,
+            .grid-esquina-inferior-izquierda,
+            .grid-esquina-inferior-derecha {
+                width: 16px;
+                height: 16px;
+            }
+            
+            .header-info { flex-direction: column; align-items: center; }
+            .tiempos-panel { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>♜ TORNEO DE PROBLEMAS ♞</h1>
+        <div style="text-align: center;">
+            <div class="modo-badge">🏆 MODO TORNEO</div>
+        </div>
+        
+        <div class="conexion">
+            <span>Estado: <span id="estado" class="desconectado">Desconectado</span></span>
+            <button id="btnConectar">Conectar</button>
+            <button id="btnDesconectar" disabled>Desconectar</button>
+        </div>
+        
+        <div id="registro" class="registro">
+            <h3>Registro</h3>
+            <input type="text" id="nombreInput" placeholder="Tu nombre" value="Jugador">
+            <button id="btnRegistrar">Registrarse</button>
+        </div>
+        
+        <div id="juegoPanel" class="juego-panel">
+            <div class="torneo-panel" id="torneoPanel">
+                <div class="header-info">
+                    <div><strong>ID:</strong> <span id="miId">-</span></div>
+                    <div><strong>Nombre:</strong> <span id="miNombre">-</span></div>
+                    <div><span class="badge badge-info">📅 <span id="infoTorneo">-</span></span></div>
+                    <div><span class="badge">👥 <span id="inscritos">0/10</span></span></div>
+                    <div class="tiempo-box">⏱️ <span id="tiempoProblema" class="tiempo-problema">0:30</span></div>
+                    <div class="tiempo-box">⏲️ <span id="tiempoRonda" class="tiempo-ronda">--:--</span></div>
+                </div>
+                
+                <div class="main-content">
+                    <div class="tablero-container">
+                        <!-- GRID PRINCIPAL - COORDENADAS FIJAS -->
+                        <div class="tablero-grid">
+                            <!-- Esquina superior izquierda (vacía) -->
+                            <div class="grid-esquina-superior-izquierda"></div>
+                            
+                            <!-- Letras superiores (a-h) -->
+                            <div class="grid-letras-superiores">
+                                <span class="grid-letra">a</span>
+                                <span class="grid-letra">b</span>
+                                <span class="grid-letra">c</span>
+                                <span class="grid-letra">d</span>
+                                <span class="grid-letra">e</span>
+                                <span class="grid-letra">f</span>
+                                <span class="grid-letra">g</span>
+                                <span class="grid-letra">h</span>
+                            </div>
+                            
+                            <!-- Esquina superior derecha (vacía) -->
+                            <div class="grid-esquina-superior-derecha"></div>
+                            
+                            <!-- Números izquierdos (8-1) -->
+                            <div class="grid-numeros-izquierdos">
+                                <span class="grid-numero">8</span>
+                                <span class="grid-numero">7</span>
+                                <span class="grid-numero">6</span>
+                                <span class="grid-numero">5</span>
+                                <span class="grid-numero">4</span>
+                                <span class="grid-numero">3</span>
+                                <span class="grid-numero">2</span>
+                                <span class="grid-numero">1</span>
+                            </div>
+                            
+                            <!-- Tablero -->
+                            <div id="tablero"></div>
+                            
+                            <!-- Espacio derecho vacío -->
+                            <div></div>
+                            
+                            <!-- Esquina inferior izquierda (vacía) -->
+                            <div class="grid-esquina-inferior-izquierda"></div>
+                            
+                            <!-- Letras inferiores (a-h) -->
+                            <div class="grid-letras-inferiores">
+                                <span class="grid-letra">a</span>
+                                <span class="grid-letra">b</span>
+                                <span class="grid-letra">c</span>
+                                <span class="grid-letra">d</span>
+                                <span class="grid-letra">e</span>
+                                <span class="grid-letra">f</span>
+                                <span class="grid-letra">g</span>
+                                <span class="grid-letra">h</span>
+                            </div>
+                            
+                            <!-- Esquina inferior derecha (vacía) -->
+                            <div class="grid-esquina-inferior-derecha"></div>
+                        </div>
+                        
+                        <div id="turnoDisplay" class="turno-indicador">⚪ Blancas</div>
+                        
+                        <div class="botones-panel">
+                            <button id="btnInscribir" class="btn-torneo">Inscribirse</button>
+                            <button id="btnCancelarInscripcion" class="btn-cancelar">Cancelar</button>
+                        </div>
+                    </div>
+                    
+                    <div class="panel-derecho">
+                        <div id="espera" class="espera" style="display:none;">
+                            <h4>Inscripción confirmada</h4>
+                            <div class="spinner"></div>
+                            <p>Esperando inicio</p>
+                        </div>
+                        
+                        <div id="countdown" class="countdown" style="display:none;">
+                            <h4>⏰ TORNEO POR COMENZAR</h4>
+                            <div class="countdown-numero" id="countdownNumero">10</div>
+                            <p>segundos</p>
+                        </div>
+                        
+                        <div id="torneoActivo" class="torneo-activo" style="display:none;">
+                            <div class="info-torneo">
+                                <h4>Problema</h4>
+                                <p id="problemaDesc">Esperando...</p>
+                                <div class="tiempos-panel">
+                                    <div class="tiempo-box">⏱️ <span id="tiempoProblemaDisplay">0:30</span></div>
+                                    <div class="tiempo-box">⏲️ <span id="tiempoRondaDisplay">--:--</span></div>
+                                </div>
+                                <div style="margin-top: 8px; font-weight: bold; font-size: 0.85rem;" id="misDatos">R1/3 | P0/3 | ❌0/3</div>
+                            </div>
+                        </div>
+                        
+                        <div id="descanso" class="descanso" style="display:none;">
+                            <h4>⏸️ DESCANSO</h4>
+                            <div class="descanso-tiempo" id="descansoTiempo">30</div>
+                            <p>segundos para ronda <span id="siguienteRonda">2</span></p>
+                        </div>
+                        
+                        <div id="clasificacion" class="clasificacion">
+                            <h3>🏆 Clasificación</h3>
+                            <div id="listaClasificacion"></div>
+                        </div>
+                        
+                        <div class="chat">
+                            <h4>Eventos</h4>
+                            <div id="mensajes"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
