@@ -12,21 +12,6 @@ const CONFIG = {
     // ========================================
     // CONFIGURACIÓN DE FECHA Y HORA (EN UTC)
     // ========================================
-    // Para configurar la hora del torneo desde Colombia (UTC-5):
-    // 1. Decide la hora local (ej: 15:00 para 3:00 PM)
-    // 2. Suma 5 horas para obtener UTC (15:00 + 5 = 20:00 UTC)
-    // 3. Ajusta fechaUTC y horaUTC
-    // 
-    // EJEMPLOS DE CONVERSIÓN:
-    // Hora Colombia | Hora UTC (configurar)
-    // 8:00 AM       | 13:00
-    // 10:00 AM      | 15:00
-    // 2:00 PM       | 19:00
-    // 3:00 PM       | 20:00 (este ejemplo)
-    // 4:00 PM       | 21:00
-    // 6:00 PM       | 23:00
-    // 8:00 PM       | 01:00 (día siguiente)
-    
     fechaUTC: '2026-03-11',               // Formato AAAA-MM-DD en UTC
     horaUTC: '22:15',                      // Formato HH:MM en UTC (24h)
     
@@ -43,6 +28,11 @@ const CONFIG = {
     // MODO DE PROBLEMAS (SOLO ADMINISTRADOR)
     // ========================================
     modoProblemas: 'azar',                // 'orden' o 'azar'
+    
+    // ========================================
+    // CONTROL DE REPETICIÓN DE PROBLEMAS
+    // ========================================
+    permitirRepeticionEntreRondas: false, // true = pueden repetirse, false = NO se repiten en todo el torneo
     
     // ========================================
     // TEMPORIZADORES (SOLO ADMINISTRADOR)
@@ -1999,10 +1989,7 @@ function obtenerFechaLocal() {
     const [anio, mes, dia] = CONFIG.fechaUTC.split('-').map(Number);
     const [hora, minuto] = CONFIG.horaUTC.split(':').map(Number);
     
-    // Crear fecha en UTC
     const fechaUTC = new Date(Date.UTC(anio, mes - 1, dia, hora, minuto, 0));
-    
-    // Convertir a hora local del servidor (ajusta automáticamente según la zona horaria)
     const fechaLocal = new Date(fechaUTC);
     
     return {
@@ -2035,6 +2022,7 @@ console.log(`🎯 Torneo (UTC): ${CONFIG.fechaUTC} ${CONFIG.horaUTC} UTC`);
 console.log(`🎯 Torneo (hora servidor): ${fechaLocal.fechaLocalStr} ${fechaLocal.horaLocal}`);
 console.log(`🎯 Rondas: ${CONFIG.rondas} | Problemas por ronda: ${CONFIG.problemasPorRonda}`);
 console.log(`🔄 Modo problemas: ${CONFIG.modoProblemas}`);
+console.log(`🔄 Permitir repetición entre rondas: ${CONFIG.permitirRepeticionEntreRondas ? 'SÍ' : 'NO'}`);
 console.log(`🎯 Fallos máximos por ronda: ${CONFIG.fallosMaximos}`);
 console.log(`⏱️ Tiempo por problema: ${CONFIG.tiempoPorProblema > 0 ? CONFIG.tiempoPorProblema + 's' : 'ILIMITADO'}`);
 console.log(`⏱️ Tiempo por ronda: ${CONFIG.tiempoPorRondaActivo ? CONFIG.tiempoPorRonda + 's' : 'DESACTIVADO'}`);
@@ -2074,7 +2062,6 @@ wss.on('connection', (ws) => {
 
     console.log(`🎮 Jugador ${idJugador} conectado`);
     
-    // Enviar configuración con hora local del servidor
     const fechaInfo = obtenerFechaLocal();
     
     ws.send(JSON.stringify({ 
@@ -2206,19 +2193,21 @@ function crearTorneo() {
         tiempoRestante: tiempoRestante,
         temporizador: null,
         descansoTemporizador: null,
-        problemasRonda: []
+        problemasRonda: [],
+        // ============================================
+        // HISTORIAL DE PROBLEMAS YA UTILIZADOS
+        // ============================================
+        problemasUtilizados: []  // IDs de problemas que ya han aparecido en rondas anteriores
     };
     
     const fechaLocal = obtenerFechaLocal();
     console.log(`🏆 TORNEO CREADO - Inicio (hora servidor): ${fechaLocal.fechaLocalStr} ${fechaLocal.horaLocal}`);
     
     if (tiempoRestante > 0) {
-        // Programar countdown 10 segundos antes
         setTimeout(() => {
             iniciarCountdown();
         }, (tiempoRestante - 10) * 1000);
         
-        // Programar inicio del torneo
         setTimeout(() => {
             iniciarTorneo();
         }, tiempoRestante * 1000);
@@ -2273,6 +2262,7 @@ function iniciarTorneo() {
     torneo.inscritos = [...salaEspera];
     
     console.log(`🏁 TORNEO INICIADO - ${torneo.inscritos.length} participantes - Modo: ${CONFIG.modoProblemas}`);
+    console.log(`   Repetición entre rondas: ${CONFIG.permitirRepeticionEntreRondas ? 'PERMITIDA' : 'NO PERMITIDA'}`);
     
     torneo.inscritos.forEach(id => {
         const jugador = jugadores[id];
@@ -2293,31 +2283,75 @@ function iniciarTorneo() {
     comenzarRonda(1);
 }
 
+// ============================================
+// NUEVA FUNCIÓN: Seleccionar problemas SIN repetición entre rondas
+// ============================================
 function seleccionarProblemasRonda() {
     const problemasSeleccionados = [];
-    const problemasDisponibles = [...problemas];
     
     if (CONFIG.modoProblemas === 'orden') {
-        // Modo ORDEN: tomar por ID ascendente
+        // MODO ORDEN: tomar por ID ascendente, considerando repetición
         const problemasOrdenados = problemas.sort((a, b) => a.id - b.id);
-        for (let i = 0; i < CONFIG.problemasPorRonda; i++) {
-            if (i < problemasOrdenados.length) {
-                problemasSeleccionados.push(JSON.parse(JSON.stringify(problemasOrdenados[i])));
-            }
-        }
-    } else {
-        // Modo AZAR: selección aleatoria
-        for (let i = 0; i < CONFIG.problemasPorRonda; i++) {
-            if (problemasDisponibles.length === 0) {
-                problemasDisponibles.push(...problemas);
+        let contador = 0;
+        
+        for (let i = 0; i < problemasOrdenados.length && contador < CONFIG.problemasPorRonda; i++) {
+            const problema = problemasOrdenados[i];
+            
+            // Si no se permiten repeticiones, verificar que el problema no haya sido usado
+            if (!CONFIG.permitirRepeticionEntreRondas && torneo.problemasUtilizados.includes(problema.id)) {
+                continue; // Saltar este problema, ya se usó en ronda anterior
             }
             
+            problemasSeleccionados.push(JSON.parse(JSON.stringify(problema)));
+            torneo.problemasUtilizados.push(problema.id);
+            contador++;
+        }
+        
+        // Si no hay suficientes problemas disponibles (caso extremo), permitir repetición como fallback
+        if (contador < CONFIG.problemasPorRonda) {
+            console.log(`⚠️ No hay suficientes problemas nuevos. Usando repetición como fallback.`);
+            for (let i = 0; i < problemasOrdenados.length && contador < CONFIG.problemasPorRonda; i++) {
+                const problema = problemasOrdenados[i];
+                if (!problemasSeleccionados.some(p => p.id === problema.id)) {
+                    problemasSeleccionados.push(JSON.parse(JSON.stringify(problema)));
+                    contador++;
+                }
+            }
+        }
+        
+    } else {
+        // MODO AZAR: selección aleatoria sin repetición
+        const problemasDisponibles = [...problemas];
+        let contador = 0;
+        
+        while (problemasDisponibles.length > 0 && contador < CONFIG.problemasPorRonda) {
             const indice = Math.floor(Math.random() * problemasDisponibles.length);
-            problemasSeleccionados.push(JSON.parse(JSON.stringify(problemasDisponibles[indice])));
+            const problema = problemasDisponibles[indice];
+            
+            // Si no se permiten repeticiones, verificar que el problema no haya sido usado
+            if (!CONFIG.permitirRepeticionEntreRondas && torneo.problemasUtilizados.includes(problema.id)) {
+                problemasDisponibles.splice(indice, 1); // Eliminar de disponibles
+                continue; // Saltar este problema
+            }
+            
+            problemasSeleccionados.push(JSON.parse(JSON.stringify(problema)));
+            torneo.problemasUtilizados.push(problema.id);
             problemasDisponibles.splice(indice, 1);
+            contador++;
+        }
+        
+        // Si no hay suficientes problemas disponibles, usar repetición como fallback
+        if (contador < CONFIG.problemasPorRonda) {
+            console.log(`⚠️ No hay suficientes problemas nuevos. Usando repetición como fallback.`);
+            const problemasRestantes = problemas.filter(p => !problemasSeleccionados.some(sel => sel.id === p.id));
+            for (let i = 0; i < problemasRestantes.length && contador < CONFIG.problemasPorRonda; i++) {
+                problemasSeleccionados.push(JSON.parse(JSON.stringify(problemasRestantes[i])));
+                contador++;
+            }
         }
     }
     
+    console.log(`   📋 Problemas seleccionados para ronda ${torneo.rondaActual + 1}: ${problemasSeleccionados.map(p => p.id).join(', ')}`);
     return problemasSeleccionados;
 }
 
@@ -2409,7 +2443,7 @@ function enviarProblemaAJugador(idJugador) {
     
     const colorJugador = problema.fen.includes(' w ') ? 'w' : 'b';
     
-    console.log(`📤 ${jugador.nombre} - Ronda ${jugador.rondaActual} Problema ${jugador.problemasResueltosRonda + 1}`);
+    console.log(`📤 ${jugador.nombre} - Ronda ${jugador.rondaActual} Problema ${jugador.problemasResueltosRonda + 1} (ID: ${problema.id})`);
     
     jugador.conexion.send(JSON.stringify({
         tipo: 'problema_torneo',
