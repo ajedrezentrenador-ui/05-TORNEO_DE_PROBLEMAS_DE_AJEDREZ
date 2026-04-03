@@ -13,7 +13,7 @@ const CONFIG = {
     // CONFIGURACIÓN DE FECHA Y HORA (EN UTC)
     // ========================================
     fechaUTC: '2026-04-03',               // Formato AAAA-MM-DD en UTC
-    horaUTC: '11:43',                      // Formato HH:MM en UTC (24h)
+    horaUTC: '11:48',                      // Formato HH:MM en UTC (24h)
     
     // ========================================
     // PARÁMETROS DEL TORNEO
